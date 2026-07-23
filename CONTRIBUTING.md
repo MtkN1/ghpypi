@@ -6,8 +6,6 @@ ghpypi adds one GitHub Release to a package catalog and builds a Python Simple i
 
 ### Flow
 
-The GitHub Actions workflow publishes the Release before it runs ghpypi. It deploys `site/` after ghpypi finishes.
-
 ```mermaid
 sequenceDiagram
     participant Workflow as GitHub Actions
@@ -33,7 +31,7 @@ sequenceDiagram
 - **GHCR** stores the catalog. The catalog is the source of truth for index metadata
 - **GitHub Pages** serves the generated HTML index
 
-The default output directory is `site/simple/`:
+By default, ghpypi replaces only `site/simple/`:
 
 ```text
 site/
@@ -43,62 +41,33 @@ site/
         └── index.html
 ```
 
-ghpypi replaces this directory but does not change its parent or sibling files.
-
 ### Distribution files
 
-ghpypi checks Release asset names:
+ghpypi parses `.whl` and `.tar.gz` asset names with [`parse_wheel_filename()` and `parse_sdist_filename()`][packaging-utils]. It ignores other assets and rejects invalid distribution filenames.
 
-- `.whl` files use [`parse_wheel_filename()`][packaging-utils]
-- `.tar.gz` files use [`parse_sdist_filename()`][packaging-utils]
-- An invalid wheel or source distribution name is an error
-- Other assets are ignored
+All distribution files in one Release must have the same normalized project name and version.
 
-All distribution files in one Release must have the same normalized project name and version. The version in the filename decides whether a release is a Python prerelease. The GitHub `prerelease` flag does not.
+Each catalog file record stores the filename, GitHub Release asset URL, size, and SHA-256 digest. If the GitHub API does not provide the digest, ghpypi downloads the asset as a stream and calculates it.
 
-Each file record contains:
+### Catalog
 
-- the filename
-- the GitHub Release asset URL
-- the size in bytes
-- the SHA-256 digest
-
-ghpypi uses the digest from the GitHub API when it is available. Otherwise, it downloads the asset as a stream and calculates the digest.
-
-### Catalog rules
-
-- One repository has one catalog
-- One catalog contains one Python project
-- Syncing a tag replaces the catalog entry for that Release
-- Syncing the same state again makes no change
-- Rendering and pushing use the same updated catalog
+- Each repository has one catalog for one Python project
+- Processing a Release replaces its catalog entry
+- Processing the same state again makes no change
 - Catalog updates run one at a time
-- An OCI digest identifies an exact catalog snapshot
-- A stable OCI tag points to the current catalog
-
-The catalog format is independent of the HTML renderer. A future JSON renderer can use the same catalog.
 
 ### HTML index
 
-The index implements the HTML form of the [Simple Repository API][simple-api]:
+The index follows the required rules of the [Simple Repository API][simple-api] and adds SHA-256 URL fragments.
 
-- every response is valid HTML5
-- the root page links to the normalized project path
-- the project link is relative
-- the project page has one link for each distribution file
-- each link text matches the filename in its URL
-- each file URL has a SHA-256 fragment
-
-Distribution links use absolute GitHub Release asset URLs. The index and the files do not need to use the same host.
+Project links are relative. Distribution links are absolute GitHub Release asset URLs.
 
 ### Boundaries
 
 ghpypi does not:
 
-- build distributions
-- create, edit, or publish GitHub Releases
-- check whether a Release is mutable or immutable
-- watch for later changes to a Release
+- build distributions or manage GitHub Releases
+- check whether a Release is mutable or immutable, or watch for later changes
 - deploy GitHub Pages by itself
 - change files outside its output directory
 
