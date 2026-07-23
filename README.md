@@ -6,6 +6,4 @@ Build a PyPI-compatible package registry with GitHub Releases, GHCR, and GitHub 
 
 ghpypi reads Python distribution assets from a GitHub Release, records them in an OCI catalog stored in GHCR, and generates a static [Simple Repository API][simple-api] under `site/simple/` for publication with GitHub Pages.
 
-The project is currently in its design phase. See the [architecture concept](docs/concepts/architecture.md) for the agreed scope, responsibility boundaries, and release workflow.
-
 [simple-api]: https://packaging.python.org/en/latest/specifications/simple-repository-api/

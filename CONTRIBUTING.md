@@ -1,10 +1,12 @@
-# Architecture
+# Contributing
+
+## Architecture
 
 ghpypi is a GitHub Actions-first tool that turns Python distribution assets in GitHub Releases into a PyPI-compatible package registry on GitHub Pages.
 
 This document is the current architecture baseline. It records the design that implementation must preserve; exploratory alternatives remain in the original design discussion rather than in this repository.
 
-## Goals
+### Goals
 
 ghpypi will:
 
@@ -28,7 +30,7 @@ site/
         └── index.html
 ```
 
-## Non-goals
+### Non-goals
 
 The MVP will not:
 
@@ -45,7 +47,7 @@ The MVP will not:
 
 Building distributions, uploading them, and publishing a Release remain the user workflow's responsibility. Immutable Releases are recommended for reproducibility, but ghpypi behaves identically for mutable and immutable Releases.
 
-## System model
+### System model
 
 The three GitHub services have distinct responsibilities:
 
@@ -65,7 +67,7 @@ flowchart LR
 
 GitHub Pages is never used as internal storage. The generated HTML can be deleted and reproduced from the GHCR catalog.
 
-## Responsibility boundary
+### Responsibility boundary
 
 ```mermaid
 flowchart LR
@@ -104,7 +106,7 @@ ghpypi owns the complete contents of its configured output directory, `site/simp
 
 Pages deployment is composed from GitHub's official Pages actions. ghpypi produces the index tree; it does not duplicate the Pages deployment protocol or enable Pages repository settings.
 
-## Release workflow
+### Release workflow
 
 The normal workflow publishes the Release before synchronizing it. This avoids publishing an index that points to draft or otherwise unavailable assets.
 
@@ -150,7 +152,7 @@ The candidate catalog and HTML are built and validated before the canonical cata
 
 Catalog updates must be serialized at the workflow level so that concurrent tag workflows cannot overwrite one another's updates.
 
-## Release snapshot semantics
+### Release snapshot semantics
 
 ghpypi receives a repository and tag, resolves the corresponding Release, and records the valid distribution assets visible at that moment. It does not:
 
@@ -163,7 +165,7 @@ Synchronizing the same tag again replaces that Release's catalog entry with a ne
 
 This deliberately narrow contract makes Release lifecycle policy an upstream concern. Enabling Immutable Releases is a user choice that makes the recorded snapshot stable without changing ghpypi's behavior.
 
-## Distribution recognition
+### Distribution recognition
 
 Release assets are divided into candidates and unrelated assets:
 
@@ -181,7 +183,7 @@ All recognized assets in one synchronized Release must belong to one normalized 
 
 The MVP does not download and inspect archive contents merely to revalidate metadata that the upstream build and release workflow already produced.
 
-## File metadata
+### File metadata
 
 Each catalog file record needs enough information to render the MVP index and to support a future JSON serialization:
 
@@ -200,7 +202,7 @@ The generated project page uses the digest as a URL fragment:
 </a>
 ```
 
-## Catalog
+### Catalog
 
 The GHCR catalog is the canonical metadata source for the generated index. It is stored as a custom OCI artifact and transported with ORAS.
 
@@ -220,7 +222,7 @@ The exact JSON schema, OCI artifact type, layer media type, repository reference
 - serializers consume a catalog model rather than GitHub API responses; and
 - optional metadata can be added without changing existing field meanings.
 
-## HTML Simple Repository API
+### HTML Simple Repository API
 
 The MVP renders the HTML serialization of the [Simple Repository API][simple-api]. It provides:
 
@@ -241,7 +243,7 @@ Distribution links use absolute GitHub Release asset URLs. Files do not need to 
 
 The HTML renderer is a view over the catalog model. Future JSON support must be implemented as another serialization of that model, not by parsing or extending the generated HTML.
 
-## Failure and retry behavior
+### Failure and retry behavior
 
 The workflow intentionally prefers a temporarily stale index over an index that points to an unpublished Release:
 
@@ -252,7 +254,7 @@ The workflow intentionally prefers a temporarily stale index over an index that 
 
 The synchronization and rendering operations must therefore be safe to rerun.
 
-## MVP boundary
+### MVP boundary
 
 The MVP includes:
 
@@ -275,7 +277,7 @@ Future work may add:
 - additional catalog stores; and
 - inspection and rollback tooling for catalog snapshots.
 
-## Detailed-design handoff
+### Detailed-design handoff
 
 The next design phase should define:
 
@@ -290,7 +292,7 @@ The next design phase should define:
 
 Those decisions may refine implementation structure, but must not blur the service ownership and responsibility boundaries established here.
 
-## References
+### References
 
 - [Python Simple Repository API][simple-api]
 - [`packaging.utils` filename parsers][packaging-utils]
