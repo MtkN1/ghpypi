@@ -2,7 +2,7 @@
 
 ## Architecture
 
-ghpypi adds one GitHub Release to a package catalog and builds a Python Simple index from the full catalog.
+ghpypi stores a snapshot of one GitHub Release in GHCR and builds a Python Simple index from all stored Release snapshots.
 
 ### Flow
 
@@ -11,16 +11,16 @@ sequenceDiagram
     participant Workflow as GitHub Actions
     participant Releases as GitHub Releases
     participant Ghpypi as ghpypi
-    participant Catalog as GHCR
+    participant Snapshots as GHCR
     participant Pages as GitHub Pages
 
     Workflow->>Releases: Publish Release
     Workflow->>Ghpypi: Provide release tag
-    Ghpypi->>Releases: Read assets
-    Releases-->>Ghpypi: Release and asset metadata
-    Ghpypi->>Catalog: Pull catalog with ORAS
-    Ghpypi->>Ghpypi: Replace release and render index
-    Ghpypi->>Catalog: Push catalog with ORAS
+    Ghpypi->>Releases: Read Release and assets
+    Releases-->>Ghpypi: Release and asset data
+    Ghpypi->>Snapshots: Pull Release snapshots with ORAS
+    Ghpypi->>Ghpypi: Replace snapshot and render index
+    Ghpypi->>Snapshots: Push Release snapshots with ORAS
     Ghpypi-->>Workflow: Write HTML index
     Workflow->>Pages: Deploy Pages artifact
 ```
@@ -28,7 +28,7 @@ sequenceDiagram
 ### Storage
 
 - **GitHub Releases** stores wheel and source distribution files
-- **GHCR** stores the catalog. The catalog is the source of truth for index metadata
+- **GHCR** stores the Release snapshots that are the source of truth for the index
 - **GitHub Pages** serves the generated HTML index
 
 By default, ghpypi replaces only `site/simple/`:
@@ -47,18 +47,19 @@ ghpypi parses `.whl` and `.tar.gz` asset names with [`parse_wheel_filename()` an
 
 All distribution files in one Release must have the same normalized project name and version.
 
-Each catalog file record stores the filename, GitHub Release asset URL, size, and SHA-256 digest. If the GitHub API does not provide the digest, ghpypi downloads the asset as a stream and calculates it.
+ghpypi uses each asset's filename, download URL, size, and digest to build the index.
 
-### Catalog
+### Release snapshots
 
-- Each repository has one catalog for one Python project
-- Processing a Release replaces its catalog entry
-- Processing the same state again makes no change
-- Catalog updates run one at a time
+- Each tag identifies one Release snapshot
+- A snapshot keeps the raw Release and asset data returned by the GitHub API
+- Data calculated by ghpypi is stored separately from the raw GitHub data
+- Processing a tag replaces its snapshot with the current API data
+- Snapshot updates run one at a time
 
 ### HTML index
 
-The index follows the required rules of the [Simple Repository API][simple-api] and adds SHA-256 URL fragments.
+The index follows the required rules of the [Simple Repository API][simple-api]. It adds a SHA-256 URL fragment when GitHub provides the digest.
 
 Project links are relative. Distribution links are absolute GitHub Release asset URLs.
 
