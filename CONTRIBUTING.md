@@ -79,5 +79,74 @@ ghpypi does not:
 - deploy GitHub Pages by itself
 - change files outside its output directory
 
+### Components
+
+#### Behavior
+
+```mermaid
+classDiagram
+    class PackageIndex {
+        +update(repository, tag, artifact_ref, output_dir)
+    }
+
+    class GitHubGateway {
+        <<Protocol>>
+        +get_repository(repository) RepositoryIdentity
+        +get_release(repository, tag) ReleaseSnapshot
+    }
+
+    class SnapshotStore {
+        <<Protocol>>
+        +load(artifact_ref) ReleaseSnapshots
+        +save(artifact_ref, snapshots)
+    }
+
+    class IndexRenderer {
+        +render(snapshots) RenderedIndex
+    }
+
+    class IndexWriter {
+        <<Protocol>>
+        +write(index, output_dir)
+    }
+
+    PackageIndex --> GitHubGateway : uses
+    PackageIndex --> SnapshotStore : uses
+    PackageIndex --> IndexRenderer : uses
+    PackageIndex --> IndexWriter : uses
+```
+
+#### Data models
+
+```mermaid
+classDiagram
+    class RepositoryIdentity {
+        +id
+        +full_name
+    }
+
+    class ReleaseSnapshot {
+        +github_api_version
+        +release
+    }
+
+    class ReleaseSnapshots {
+        +repository: RepositoryIdentity
+        +releases
+        +empty(repository) ReleaseSnapshots
+        +verify_repository(repository)
+        +replace(tag, snapshot) ReleaseSnapshots
+    }
+
+    class RenderedIndex {
+        +files
+    }
+
+    ReleaseSnapshots "1" *-- "1" RepositoryIdentity : records
+    ReleaseSnapshots "1" *-- "*" ReleaseSnapshot : contains
+```
+
+`PackageIndex` controls the update flow. `ReleaseSnapshots` owns the stored state and its replacement rules. `IndexRenderer` builds a validated `RenderedIndex` before the snapshot store and index writer change external state.
+
 [packaging-utils]: https://packaging.pypa.io/en/stable/utils.html
 [simple-api]: https://packaging.python.org/en/latest/specifications/simple-repository-api/
