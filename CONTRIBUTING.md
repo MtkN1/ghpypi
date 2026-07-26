@@ -16,7 +16,7 @@ sequenceDiagram
 
     Workflow->>Releases: Publish Release
     Workflow->>Ghpypi: Provide release tag
-    Ghpypi->>Releases: Read Release and assets
+    Ghpypi->>Releases: Read Release by tag
     Releases-->>Ghpypi: Release and asset data
     Ghpypi->>Snapshots: Pull Release snapshots with ORAS
     Ghpypi->>Ghpypi: Replace snapshot and render index
@@ -25,11 +25,15 @@ sequenceDiagram
     Workflow->>Pages: Deploy Pages artifact
 ```
 
+ghpypi renders and validates the complete index before it changes GHCR or the output directory. It then stores the updated snapshots in GHCR and writes the rendered index. If writing the index fails, processing the same tag again repairs it.
+
 ### Storage
 
 - **GitHub Releases** stores wheel and source distribution files
 - **GHCR** stores the Release snapshots that are the source of truth for the index
 - **GitHub Pages** serves the generated HTML index
+
+Each repository has one OCI artifact containing all of its Release snapshots. Its default reference is `ghcr.io/<owner>/ghpypi/<repository>:latest`.
 
 By default, ghpypi replaces only `site/simple/`:
 
@@ -52,10 +56,13 @@ ghpypi uses each asset's filename, download URL, size, and digest to build the i
 ### Release snapshots
 
 - Each tag identifies one Release snapshot
-- A snapshot keeps the raw Release and asset data returned by the GitHub API
-- Data calculated by ghpypi is stored separately from the raw GitHub data
+- A snapshot keeps the raw response from GitHub's Release API, including its assets
+- The snapshot collection records the repository ID and full name
 - Processing a tag replaces its snapshot with the current API data
+- The Simple index is rebuilt from all snapshots on every run
 - Snapshot updates run one at a time
+
+If the artifact does not exist, ghpypi starts with an empty snapshot collection. Any other artifact or snapshot error stops the update.
 
 ### HTML index
 
