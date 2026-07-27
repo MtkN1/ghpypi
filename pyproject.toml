@@ -42,6 +42,10 @@ relative_files = true
 source = ["ghpypi"]
 
 [tool.coverage.report]
+exclude_also = [
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
 fail_under = 100
 show_missing = true
 skip_covered = true
