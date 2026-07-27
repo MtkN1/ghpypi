@@ -1,5 +1,28 @@
 # Contributing
 
+## Development
+
+Install the project and its development dependencies from the lockfile:
+
+```shell
+uv sync
+```
+
+Run the static checks:
+
+```shell
+uv run -- ruff check
+uv run -- ruff format --check
+uv run -- ty check
+```
+
+Apply automatic fixes and formatting:
+
+```shell
+uv run -- ruff check --fix
+uv run -- ruff format
+```
+
 ## Architecture
 
 ghpypi stores a snapshot of one GitHub Release in GHCR and builds a Python Simple index from all stored Release snapshots.
