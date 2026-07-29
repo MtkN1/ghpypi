@@ -83,9 +83,10 @@ ghpypi uses each asset's filename, download URL, size, and digest to build the i
 - The snapshot collection records the repository ID and full name
 - Processing a tag replaces its snapshot with the current API data
 - The Simple index is rebuilt from all snapshots on every run
-- Snapshot updates run one at a time
 
 `SnapshotStore.load()` returns `None` when the artifact does not exist, and ghpypi starts with an empty snapshot collection for the current repository identity. Existing collections must match that identity. A repository mismatch or any other artifact or snapshot error stops the update.
+
+Because ghpypi provides no locking or optimistic concurrency for snapshot updates, all workflow runs targeting the same artifact reference **MUST** share a GitHub Actions concurrency group derived from that reference (or `github.repository` under the default one-repository-to-one-artifact mapping), use `queue: max` (up to 100 waiting runs), and **MUST NOT** use `cancel-in-progress` or the default `queue: single`, which can replace pending runs and omit Release tags.
 
 ### HTML index
 
