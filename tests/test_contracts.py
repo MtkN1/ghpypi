@@ -4,6 +4,7 @@ from typing import Self
 
 import pytest
 
+import ghpypi
 from ghpypi import (
     ArtifactReference,
     GitHubGateway,
@@ -27,6 +28,32 @@ OUTPUT_DIR = Path("site/simple")
 
 type SnapshotState = dict[ArtifactReference, ReleaseSnapshots]
 type OutputState = dict[Path, str]
+
+
+def test_public_api_is_exported_from_package() -> None:
+    public_api = [
+        "ArtifactReference",
+        "GitHubAPIVersion",
+        "GitHubGateway",
+        "GitHubRelease",
+        "IndexRenderer",
+        "IndexWriter",
+        "JSONScalar",
+        "JSONValue",
+        "PackageIndex",
+        "ReleaseSnapshot",
+        "ReleaseSnapshots",
+        "ReleaseTag",
+        "RenderedFiles",
+        "RenderedIndex",
+        "RepositoryIdentity",
+        "RepositoryName",
+        "SnapshotStore",
+    ]
+
+    assert ghpypi.__all__ == public_api
+    assert all(getattr(ghpypi, name) is not None for name in public_api)
+    assert RepositoryIdentity.__module__ == "ghpypi._contracts"
 
 
 class PackageIndexUseCase:

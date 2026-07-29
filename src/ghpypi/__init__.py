@@ -1,6 +1,6 @@
 """Build a PyPI-compatible package registry from GitHub Releases."""
 
-from .contracts import (
+from ._contracts import (
     ArtifactReference,
     GitHubAPIVersion,
     GitHubGateway,
