@@ -85,7 +85,7 @@ ghpypi uses each asset's filename, download URL, size, and digest to build the i
 - The Simple index is rebuilt from all snapshots on every run
 - Snapshot updates run one at a time
 
-If the artifact does not exist, ghpypi starts with an empty snapshot collection. Any other artifact or snapshot error stops the update.
+`SnapshotStore.load()` returns `None` when the artifact does not exist, and ghpypi starts with an empty snapshot collection for the current repository identity. Existing collections must match that identity. A repository mismatch or any other artifact or snapshot error stops the update.
 
 ### HTML index
 
@@ -120,7 +120,7 @@ classDiagram
 
     class SnapshotStore {
         <<Protocol>>
-        +load(artifact_ref) ReleaseSnapshots
+        +load(artifact_ref) ReleaseSnapshots?
         +save(artifact_ref, snapshots)
     }
 
@@ -154,6 +154,7 @@ classDiagram
     }
 
     class ReleaseSnapshots {
+        <<immutable>>
         +repository: RepositoryIdentity
         +releases
         +empty(repository) ReleaseSnapshots
