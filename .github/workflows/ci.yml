@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install Python and dependencies
+        run: |
+          uv python install
+          uv sync --locked --dev
+
+      - name: Lint
+        run: uv run --frozen -- ruff check
+
+      - name: Check formatting
+        run: uv run --frozen -- ruff format --check
+
+      - name: Check types
+        run: uv run --frozen -- ty check
+
+      - name: Test
+        run: |
+          uv run --frozen -- coverage run -m pytest
+          uv run --frozen -- coverage report
+
+      - name: Build package
+        run: uv build

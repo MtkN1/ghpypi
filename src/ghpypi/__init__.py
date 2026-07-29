@@ -1,0 +1,41 @@
+"""Build a PyPI-compatible package registry from GitHub Releases."""
+
+from .contracts import (
+    ArtifactReference,
+    GitHubAPIVersion,
+    GitHubGateway,
+    GitHubRelease,
+    IndexRenderer,
+    IndexWriter,
+    JSONScalar,
+    JSONValue,
+    PackageIndex,
+    ReleaseSnapshot,
+    ReleaseSnapshots,
+    ReleaseTag,
+    RenderedFiles,
+    RenderedIndex,
+    RepositoryIdentity,
+    RepositoryName,
+    SnapshotStore,
+)
+
+__all__ = [
+    "ArtifactReference",
+    "GitHubAPIVersion",
+    "GitHubGateway",
+    "GitHubRelease",
+    "IndexRenderer",
+    "IndexWriter",
+    "JSONScalar",
+    "JSONValue",
+    "PackageIndex",
+    "ReleaseSnapshot",
+    "ReleaseSnapshots",
+    "ReleaseTag",
+    "RenderedFiles",
+    "RenderedIndex",
+    "RepositoryIdentity",
+    "RepositoryName",
+    "SnapshotStore",
+]
