@@ -1,8 +1,8 @@
-"""Public contracts for the ghpypi update workflow.
+"""Contracts for the ghpypi update workflow.
 
-This module intentionally defines structure without implementing the update,
-rendering, or persistence behavior.  The contracts mirror the components in
-the architecture documentation and form the boundary for later adapters.
+This module defines interfaces and data structures without implementing update,
+rendering, or persistence behavior.  They mirror the components in the
+architecture documentation and form the boundaries for adapters.
 """
 
 from collections.abc import Mapping
