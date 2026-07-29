@@ -61,8 +61,15 @@ class RenderedIndex:
 class ReleaseSnapshots(Protocol):
     """The state and replacement operations for one repository's snapshots."""
 
-    repository: RepositoryIdentity
-    releases: Mapping[ReleaseTag, ReleaseSnapshot]
+    @property
+    def repository(self) -> RepositoryIdentity:
+        """Return the repository recorded by this collection."""
+        raise NotImplementedError
+
+    @property
+    def releases(self) -> Mapping[ReleaseTag, ReleaseSnapshot]:
+        """Return the snapshots keyed by release tag."""
+        raise NotImplementedError
 
     @classmethod
     def empty(cls, repository: RepositoryIdentity) -> Self:
