@@ -1,6 +1,5 @@
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Self
 
 import pytest
 
@@ -55,42 +54,14 @@ class PackageIndexUseCase:
         repository_identity = self._github.get_repository(repository)
         release = self._github.get_release(repository, tag)
         snapshots = self._snapshot_store.load(artifact_ref)
-        snapshots.verify_repository(repository_identity)
+        if snapshots is None:
+            snapshots = ReleaseSnapshots.empty(repository_identity)
+        else:
+            snapshots.verify_repository(repository_identity)
         updated_snapshots = snapshots.replace(tag, release)
         rendered_index = self._renderer.render(updated_snapshots)
         self._snapshot_store.save(artifact_ref, updated_snapshots)
         self._writer.write(rendered_index, output_dir)
-
-
-class FakeReleaseSnapshots:
-    def __init__(
-        self,
-        repository: RepositoryIdentity,
-        releases: Mapping[ReleaseTag, ReleaseSnapshot],
-    ) -> None:
-        self._repository = repository
-        self._releases = releases
-
-    @property
-    def repository(self) -> RepositoryIdentity:
-        return self._repository
-
-    @property
-    def releases(self) -> Mapping[ReleaseTag, ReleaseSnapshot]:
-        return self._releases
-
-    @classmethod
-    def empty(cls, repository: RepositoryIdentity) -> Self:
-        return cls(repository=repository, releases={})
-
-    def verify_repository(self, repository: RepositoryIdentity) -> None:
-        return None
-
-    def replace(self, tag: ReleaseTag, snapshot: ReleaseSnapshot) -> Self:
-        return type(self)(
-            repository=self.repository,
-            releases={**self.releases, tag: snapshot},
-        )
 
 
 class FakeGitHubGateway:
@@ -115,8 +86,8 @@ class FakeSnapshotStore:
     def __init__(self, state: SnapshotState) -> None:
         self._state = state
 
-    def load(self, artifact_ref: ArtifactReference) -> ReleaseSnapshots:
-        return self._state[artifact_ref]
+    def load(self, artifact_ref: ArtifactReference) -> ReleaseSnapshots | None:
+        return self._state.get(artifact_ref)
 
     def save(
         self, artifact_ref: ArtifactReference, snapshots: ReleaseSnapshots
@@ -197,9 +168,14 @@ def rendered_index() -> RenderedIndex:
 def snapshot_state(
     repository_identity: RepositoryIdentity,
     existing_snapshot: ReleaseSnapshot,
+    stale_snapshot: ReleaseSnapshot,
 ) -> SnapshotState:
-    snapshots = FakeReleaseSnapshots.empty(repository_identity).replace(
-        EXISTING_TAG, existing_snapshot
+    snapshots = ReleaseSnapshots(
+        repository=repository_identity,
+        releases={
+            EXISTING_TAG: existing_snapshot,
+            TAG: stale_snapshot,
+        },
     )
     return {
         ARTIFACT_REF: snapshots,
@@ -209,6 +185,14 @@ def snapshot_state(
 @pytest.fixture
 def output_state() -> OutputState:
     return {}
+
+
+@pytest.fixture
+def stale_snapshot() -> ReleaseSnapshot:
+    return ReleaseSnapshot(
+        github_api_version="2022-11-28",
+        release={"tag_name": TAG, "name": "stale"},
+    )
 
 
 @pytest.fixture
@@ -252,6 +236,84 @@ def package_index(
     )
 
 
+def test_release_snapshots_empty(
+    repository_identity: RepositoryIdentity,
+) -> None:
+    snapshots = ReleaseSnapshots.empty(repository_identity)
+
+    assert snapshots.repository == repository_identity
+    assert snapshots.releases == {}
+
+
+def test_release_snapshots_are_isolated_from_input_mapping(
+    repository_identity: RepositoryIdentity,
+    existing_snapshot: ReleaseSnapshot,
+    release_snapshot: ReleaseSnapshot,
+) -> None:
+    releases = {EXISTING_TAG: existing_snapshot}
+    snapshots = ReleaseSnapshots(
+        repository=repository_identity,
+        releases=releases,
+    )
+
+    releases[TAG] = release_snapshot
+
+    assert snapshots.releases == {EXISTING_TAG: existing_snapshot}
+
+
+def test_release_snapshots_verify_matching_repository(
+    repository_identity: RepositoryIdentity,
+) -> None:
+    snapshots = ReleaseSnapshots.empty(repository_identity)
+
+    snapshots.verify_repository(repository_identity)
+
+
+@pytest.mark.parametrize(
+    "repository",
+    [
+        RepositoryIdentity(id=2, full_name=REPOSITORY),
+        RepositoryIdentity(id=1, full_name="owner/renamed"),
+    ],
+)
+def test_release_snapshots_reject_repository_mismatch(
+    repository_identity: RepositoryIdentity,
+    repository: RepositoryIdentity,
+) -> None:
+    snapshots = ReleaseSnapshots.empty(repository_identity)
+
+    with pytest.raises(
+        ValueError,
+        match="snapshot repository does not match requested repository",
+    ):
+        snapshots.verify_repository(repository)
+
+
+def test_release_snapshots_replace_returns_new_collection(
+    repository_identity: RepositoryIdentity,
+    existing_snapshot: ReleaseSnapshot,
+    stale_snapshot: ReleaseSnapshot,
+    release_snapshot: ReleaseSnapshot,
+) -> None:
+    snapshots = ReleaseSnapshots(
+        repository=repository_identity,
+        releases={
+            EXISTING_TAG: existing_snapshot,
+            TAG: stale_snapshot,
+        },
+    )
+
+    updated = snapshots.replace(TAG, release_snapshot)
+
+    assert updated is not snapshots
+    assert updated.repository == repository_identity
+    assert updated.releases == {
+        EXISTING_TAG: existing_snapshot,
+        TAG: release_snapshot,
+    }
+    assert snapshots.releases[TAG] is stale_snapshot
+
+
 def test_update_replaces_snapshot_and_writes_index(
     package_index: PackageIndex,
     repository_identity: RepositoryIdentity,
@@ -278,3 +340,71 @@ def test_update_replaces_snapshot_and_writes_index(
         OUTPUT_DIR / relative_path: contents
         for relative_path, contents in rendered_index.files.items()
     }
+
+
+def test_update_starts_with_empty_snapshots_when_artifact_is_absent(
+    github_gateway: GitHubGateway,
+    index_renderer: IndexRenderer,
+    index_writer: IndexWriter,
+    repository_identity: RepositoryIdentity,
+    release_snapshot: ReleaseSnapshot,
+    rendered_index: RenderedIndex,
+    output_state: OutputState,
+) -> None:
+    snapshot_state: SnapshotState = {}
+    package_index = PackageIndexUseCase(
+        github=github_gateway,
+        snapshot_store=FakeSnapshotStore(snapshot_state),
+        renderer=index_renderer,
+        writer=index_writer,
+    )
+
+    package_index.update(
+        repository=REPOSITORY,
+        tag=TAG,
+        artifact_ref=ARTIFACT_REF,
+        output_dir=OUTPUT_DIR,
+    )
+
+    saved_snapshots = snapshot_state[ARTIFACT_REF]
+    assert saved_snapshots.repository == repository_identity
+    assert saved_snapshots.releases == {TAG: release_snapshot}
+    assert output_state == {
+        OUTPUT_DIR / relative_path: contents
+        for relative_path, contents in rendered_index.files.items()
+    }
+
+
+def test_update_rejects_snapshot_for_different_repository(
+    github_gateway: GitHubGateway,
+    index_renderer: IndexRenderer,
+    index_writer: IndexWriter,
+    release_snapshot: ReleaseSnapshot,
+    output_state: OutputState,
+) -> None:
+    other_repository = RepositoryIdentity(id=2, full_name="owner/other")
+    original_snapshots = ReleaseSnapshots(
+        repository=other_repository,
+        releases={TAG: release_snapshot},
+    )
+    snapshot_state = {ARTIFACT_REF: original_snapshots}
+    package_index = PackageIndexUseCase(
+        github=github_gateway,
+        snapshot_store=FakeSnapshotStore(snapshot_state),
+        renderer=index_renderer,
+        writer=index_writer,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="snapshot repository does not match requested repository",
+    ):
+        package_index.update(
+            repository=REPOSITORY,
+            tag=TAG,
+            artifact_ref=ARTIFACT_REF,
+            output_dir=OUTPUT_DIR,
+        )
+
+    assert snapshot_state == {ARTIFACT_REF: original_snapshots}
+    assert output_state == {}

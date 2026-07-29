@@ -1,13 +1,9 @@
-"""Contracts for the ghpypi update workflow.
-
-This module defines interfaces and data structures without implementing update,
-rendering, or persistence behavior.  They mirror the components in the
-architecture documentation and form the boundaries for adapters.
-"""
+"""Interfaces and domain types shared by the update workflow and its adapters."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Protocol, Self
 
 type RepositoryName = str
@@ -58,31 +54,37 @@ class RenderedIndex:
     files: RenderedFiles
 
 
-class ReleaseSnapshots(Protocol):
-    """The state and replacement operations for one repository's snapshots."""
+@dataclass(frozen=True, slots=True)
+class ReleaseSnapshots:
+    """An immutable collection of one repository's release snapshots."""
 
-    @property
-    def repository(self) -> RepositoryIdentity:
-        """Return the repository recorded by this collection."""
-        raise NotImplementedError
+    repository: RepositoryIdentity
+    releases: Mapping[ReleaseTag, ReleaseSnapshot]
 
-    @property
-    def releases(self) -> Mapping[ReleaseTag, ReleaseSnapshot]:
-        """Return the snapshots keyed by release tag."""
-        raise NotImplementedError
+    def __post_init__(self) -> None:
+        """Copy and freeze the release mapping."""
+        object.__setattr__(self, "releases", MappingProxyType(dict(self.releases)))
 
     @classmethod
     def empty(cls, repository: RepositoryIdentity) -> Self:
         """Create an empty snapshot collection for *repository*."""
-        raise NotImplementedError
+        return cls(repository=repository, releases={})
 
     def verify_repository(self, repository: RepositoryIdentity) -> None:
         """Verify that *repository* identifies this collection's repository."""
-        raise NotImplementedError
+        if self.repository != repository:
+            msg = (
+                "snapshot repository does not match requested repository: "
+                f"{self.repository!r} != {repository!r}"
+            )
+            raise ValueError(msg)
 
     def replace(self, tag: ReleaseTag, snapshot: ReleaseSnapshot) -> Self:
         """Return a collection in which *tag* refers to *snapshot*."""
-        raise NotImplementedError
+        return type(self)(
+            repository=self.repository,
+            releases={**self.releases, tag: snapshot},
+        )
 
 
 class GitHubGateway(Protocol):
@@ -102,8 +104,8 @@ class GitHubGateway(Protocol):
 class SnapshotStore(Protocol):
     """Load and save repository-scoped release snapshot collections."""
 
-    def load(self, artifact_ref: ArtifactReference) -> ReleaseSnapshots:
-        """Load snapshots from *artifact_ref*."""
+    def load(self, artifact_ref: ArtifactReference) -> ReleaseSnapshots | None:
+        """Load snapshots, or return ``None`` when the artifact does not exist."""
         raise NotImplementedError
 
     def save(
