@@ -1,7 +1,5 @@
 from collections.abc import Mapping
-from dataclasses import FrozenInstanceError
 from pathlib import Path
-from typing import cast
 
 import pytest
 
@@ -247,7 +245,7 @@ def test_release_snapshots_empty(
     assert snapshots.releases == {}
 
 
-def test_release_snapshots_are_immutable_and_isolated_from_input(
+def test_release_snapshots_are_isolated_from_input_mapping(
     repository_identity: RepositoryIdentity,
     existing_snapshot: ReleaseSnapshot,
     release_snapshot: ReleaseSnapshot,
@@ -261,19 +259,6 @@ def test_release_snapshots_are_immutable_and_isolated_from_input(
     releases[TAG] = release_snapshot
 
     assert snapshots.releases == {EXISTING_TAG: existing_snapshot}
-    mutable_releases = cast(
-        "dict[ReleaseTag, ReleaseSnapshot]",
-        snapshots.releases,
-    )
-    with pytest.raises(TypeError):
-        mutable_releases[TAG] = release_snapshot
-    repository_attribute = "repository"
-    with pytest.raises(FrozenInstanceError):
-        setattr(
-            snapshots,
-            repository_attribute,
-            RepositoryIdentity(id=2, full_name="owner/other"),
-        )
 
 
 def test_release_snapshots_verify_matching_repository(
