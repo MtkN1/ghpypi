@@ -5,11 +5,9 @@ from ._contracts import (
     GitHubAPIVersion,
     GitHubGateway,
     GitHubRelease,
-    IndexRenderer,
     IndexWriter,
     JSONScalar,
     JSONValue,
-    PackageIndex,
     ReleaseSnapshot,
     ReleaseSnapshots,
     ReleaseTag,
@@ -19,9 +17,12 @@ from ._contracts import (
     RepositoryName,
     SnapshotStore,
 )
+from ._index import IndexRenderer, PackageIndex
+from ._writer import FilesystemIndexWriter
 
 __all__ = [
     "ArtifactReference",
+    "FilesystemIndexWriter",
     "GitHubAPIVersion",
     "GitHubGateway",
     "GitHubRelease",
