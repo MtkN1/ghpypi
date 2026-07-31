@@ -54,7 +54,12 @@ class RenderedIndex:
     files: RenderedFiles
 
     def __post_init__(self) -> None:
-        """Copy and freeze the rendered file mapping."""
+        """Validate, copy, and freeze the rendered file mapping."""
+        for relative_path in self.files:
+            path = Path(relative_path)
+            if path == Path() or path.is_absolute() or ".." in path.parts:
+                msg = f"rendered file path must stay within the output directory: {relative_path!r}"
+                raise ValueError(msg)
         object.__setattr__(self, "files", MappingProxyType(dict(self.files)))
 
 

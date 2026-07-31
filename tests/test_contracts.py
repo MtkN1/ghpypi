@@ -93,3 +93,22 @@ def test_rendered_index_copies_the_input_mapping() -> None:
 
     assert index.files == {"index.html": "contents"}
     assert isinstance(index.files, MappingProxyType)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "",
+        "/outside.html",
+        "../outside.html",
+    ],
+)
+def test_rendered_index_rejects_paths_outside_output_directory(
+    relative_path: str,
+) -> None:
+    """Reject paths that could write outside the output directory."""
+    with pytest.raises(
+        ValueError,
+        match="rendered file path must stay within the output directory",
+    ):
+        RenderedIndex({relative_path: "contents"})
