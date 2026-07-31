@@ -53,6 +53,10 @@ class RenderedIndex:
 
     files: RenderedFiles
 
+    def __post_init__(self) -> None:
+        """Copy and freeze the rendered file mapping."""
+        object.__setattr__(self, "files", MappingProxyType(dict(self.files)))
+
 
 @dataclass(frozen=True, slots=True)
 class ReleaseSnapshots:
@@ -120,26 +124,4 @@ class IndexWriter(Protocol):
 
     def write(self, index: RenderedIndex, output_dir: Path) -> None:
         """Write *index* beneath *output_dir*."""
-        raise NotImplementedError
-
-
-class IndexRenderer(Protocol):
-    """Render validated Simple Repository API indexes."""
-
-    def render(self, snapshots: ReleaseSnapshots) -> RenderedIndex:
-        """Render and validate the complete index for *snapshots*."""
-        raise NotImplementedError
-
-
-class PackageIndex(Protocol):
-    """Coordinate repository release-snapshot updates."""
-
-    def update(
-        self,
-        repository: RepositoryName,
-        tag: ReleaseTag,
-        artifact_ref: ArtifactReference,
-        output_dir: Path,
-    ) -> None:
-        """Update one release snapshot and write the rebuilt index."""
         raise NotImplementedError
