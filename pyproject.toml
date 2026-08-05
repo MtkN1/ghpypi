@@ -21,7 +21,7 @@ build-backend = "uv_build"
 dev = [
     "coverage>=7.15.0",
     "pytest>=9.0.0",
-    "ruff>=0.16.0",
+    "ruff>=0.16.1",
     "ty>=0.0.30",
 ]
 
